@@ -1,0 +1,23 @@
+{
+  "name": "ufc-bot",
+  "version": "1.0.0",
+  "description": "UFC betting bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quentinmay/ufc-bot.git"
+  },
+  "author": "Quentin May",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/quentinmay/ufc-bot/issues"
+  },
+  "homepage": "https://github.com/quentinmay/ufc-bot#readme",
+  "dependencies": {
+    "discord.js": "^12.5.3",
+    "ufc-betting-game": "^1.0.5"
+  }
+}
