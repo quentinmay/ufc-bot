@@ -5,6 +5,7 @@ let client = new Client();
 const config = require("./config.json")
 const path = require('path');
 const UFCgame = require('ufc-betting-game');
+const Bet = require('../UFC-Web-Scraper/utils/Bet');
 
 let ufc = new UFCgame();
 
@@ -122,14 +123,15 @@ async function displayBets(textChannel, mentions) {
 
         let i = 0;
         for (let outstandingBet of outstandingBets) {
-            betsEmbed.fields.push(prettyOutstandingBet(outstandingBet))
+            betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
             i++;
             if (i > 24) break;
         }
     } else {//No user mentioned. Just display all bets.
         let i = 0;
+        console.log(ufc.outstandingBets);
         for (let outstandingBet of ufc.outstandingBets) {
-            betsEmbed.fields.push(prettyOutstandingBet(outstandingBet))
+            betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
             i++;
             if (i > 24) break;
         }
@@ -172,17 +174,20 @@ async function registerUser(textChannel, mentions, author, cash) {
     }
 }
 
-function prettyOutstandingBet(outstandingBet) {
-    if (outstandingBet.type === "classic") {
+async function prettyOutstandingBet(outstandingBet) {
+    if (outstandingBet.betType === "classic") {
+        let guildmember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user1.uuid)
         return ({
             name: `${outstandingBet.betType} bet, Match: ${outstandingBet.fightEventID}, Amount: ${outstandingBet.betAmount}`,
-            value: `For winner: ${outstandingBet.user1.fighterName}`,
+            value: `${guildmember1.displayName} voted for winner: ${outstandingBet.user1.fighterName}`,
             url: "",
         });
-    } else if (outstandingBet.type === "1v1") {
+    } else if (outstandingBet.betType === "1v1") {
+        let guildmember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user1.uuid)
+        let guildmember2 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user2.uuid)
         return ({
             name: `${outstandingBet.betType} bet, Match: ${outstandingBet.fightEventID}, Amount: ${outstandingBet.betAmount}`,
-            value: `${outstandingBet.user1.uuid}-${outstandingBet.user1.fighterName}-${outstandingBet.odds} vs. ${outstandingBet.user2.uuid}-${outstandingBet.user2.fighterName}`,
+            value: `${guildmember1.displayName}-${outstandingBet.user1.fighterName}-${outstandingBet.odds} vs. ${guildmember2.displayName}-${outstandingBet.user2.fighterName}`,
             url: "",
         });
     }
@@ -217,8 +222,52 @@ async function takeMoney(mentions, content) {
     return false;
 }
 
+//From content, parse fightID, 
+async function createClassicBet(userID, content) {
+    try {
 
 
+        //Make sure arguments are proper first.
+        let arguments = content.split(" ");
+        if (arguments.length != 3) throw new Error("Creating classic bet requires 3 arguments.");
+        if (isNaN(arguments[0]) || isNaN(arguments[1]) || isNaN(arguments[2])) throw new Error("Classic bet requires 3 integer arguments.");
+        if (arguments[1] != 1 && arguments[1] != 2) throw new Error("Classic bet requires 1 or 2 for winner.");
+
+        //make sure user exists and has enough money.
+        let targetUser = await ufc.findUser(userID);
+        if (!targetUser) throw new Error("User doesn't have an account.");
+        if (targetUser.balance < arguments[2]) throw new Error("User doesn't have enough money to make this bet.");
+
+
+
+        let fight = await ufc.getFight(arguments[0]);
+        // console.log(fight);
+        if (!fight) throw new Error("Fight with this fightEventID doesn't exist");
+        if (await ufc.takeMoney(userID, arguments[2])) { //If take money worked.
+            let newBet = new Bet("classic", arguments[2], fight.event_id, fight.event_date, { uuid: targetUser.uuid, fighterName: (arguments[1] == 1 ? fight.away_name : fight.home_name) }, null, { user1: (arguments[1] == 1 ? fight.away_odds : fight.home_odds), user2: null });
+            if (await ufc.addBet(newBet)) {
+                return newBet;
+            } else {
+                await ufc.addMoney(userID, arguments[2]) // give back money because adding new bet didnt work.
+                throw new Error("Couldn't add new bet.");
+            }
+        }
+
+        // new Bet("classic", 300, 1370716, 1615096800000, { user: john, fighterName: "I Adesanya" }, null, { user1: "-250", user2: null })
+        // await test.addBet(new Bet("classic", 300, 1370716, 1615096800000, {user: john, fighterName:"I Adesanya"}, null, {user1: "-250", user2: null} ))
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
+
+
+
+}
+async function create1v1Bet() {
+
+    // await test.addBet(new Bet("1v1", 200, 1382448, 1615694400000, {user: john, fighterName:"M Nicolau"}, {user: bob, fighterName:"T Ulanbekov"}, {user1: "125", user2: "-145"} ))
+
+}
 
 client.on('message', async (msg) => {
     if (msg.content.charAt(0) === config.commandPrefix) {
@@ -260,9 +309,18 @@ client.on('message', async (msg) => {
                 break;
             //Creates a normal bet for the user using oddshark odds.
             case 'bet':
+                if (await createClassicBet(msg.author.id, contents)) {
+                    textChannel.send("`" + `Added a new classic bet successfully.` + "`");
+                    displayBets(textChannel, msg.mentions);
+
+                } else {
+                    textChannel.send("`" + `Couldn't create this bet. Make sure you use the right arguments. (fightID, winner (1 or 2), amount) Ex. "$bet 1457586 1 300" ` + "`");
+
+                }
                 break;
             //Creates a 1v1 bet between the user and the person @ mentioned. Also need a $ amount. Winner takes all.
             case '1v1':
+                await create1v1Bet();
                 break;
 
             //Admin Commands:
@@ -305,7 +363,7 @@ client.on('message', async (msg) => {
             case 'disconnect':
             case 'reset':
             case 'restart':
-                stop(msg.member);
+                // stop(msg.member);
                 break;
             case 'crash':
                 if (msg.author.id == config.discordDevID) {

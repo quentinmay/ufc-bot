@@ -18,6 +18,6 @@
   "homepage": "https://github.com/quentinmay/ufc-bot#readme",
   "dependencies": {
     "discord.js": "^12.5.3",
-    "ufc-betting-game": "^1.0.7"
+    "ufc-betting-game": "^1.1.3"
   }
 }
