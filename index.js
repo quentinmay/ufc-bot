@@ -22,7 +22,6 @@ client.on('ready', () => {
 
 
 
-
 /*
 Sets discord bot user activity. (My sample uses STREAMING so his icon is purple.)
 */
@@ -58,15 +57,13 @@ async function displayMatches(textChannel, contents) {
         let fightID = contents;
         let fight = await ufc.getFight(fightID);
         if (fight) {
-            textChannel.send("`" + `${fight.event_id} - ${fight.away_name}(${fight.away_odds}) vs. ${fight.home_name}(${fight.home_odds})` + "`");
+            textChannel.send("`" + `${fight.event_id} - 🟥1.${fight.away_name}(${fight.away_odds}) vs. 🟦2. ${fight.home_name}(${fight.home_odds})` + "`");
         } else {
             textChannel.send("`This fight doesn't exist.`");
         }
         return true;
     } else {//No user mentioned. Just display all matches.
         const matchesEmbed = {
-            title: `__Matches__`,
-            url: `https://www.oddsshark.com/ufc`,
             color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
             footer: {
                 icon_url: client.user.displayAvatarURL(),
@@ -82,17 +79,20 @@ async function displayMatches(textChannel, contents) {
         let i = 0;
 
         for (let upcomingMatch of ufc.upComingMatches) {
+            if (!upcomingMatch.away_odds || !upcomingMatch.home_odds) continue; //skip matches with unknown odds.
             matchesEmbed.fields.push({
-                name: `${upcomingMatch.event_id} - Fighters: ${upcomingMatch.away_name} vs. ${upcomingMatch.home_name}`,
+                name: `${upcomingMatch.event_id} - 🟥1. ${upcomingMatch.away_name} vs. 🟦2. ${upcomingMatch.home_name}`,
                 value: `Odds: ${upcomingMatch.away_odds} vs. ${upcomingMatch.home_odds}`,
                 url: "",
             })
             i++;
             if (i > 24) break;
         }
+        matchesEmbed.footer.text = `${i} matches listed`
         textChannel.send({
             embed: matchesEmbed
         });
+        textChannel.send("`Do $bet 'fightid' 'winner#' 'money'\n(Ex. $bet 1458441 2 300)`")
         return true;
     }
 
@@ -101,8 +101,6 @@ async function displayMatches(textChannel, contents) {
 
 async function displayBets(textChannel, mentions) {
     const betsEmbed = {
-        title: `__Bets__`,
-        url: `https://google.com`,
         color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
         footer: {
             icon_url: client.user.displayAvatarURL(),
@@ -127,14 +125,16 @@ async function displayBets(textChannel, mentions) {
             i++;
             if (i > 24) break;
         }
+        betsEmbed.footer.text = `${i} Bets listed`
+
     } else {//No user mentioned. Just display all bets.
         let i = 0;
-        console.log(ufc.outstandingBets);
         for (let outstandingBet of ufc.outstandingBets) {
             betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
             i++;
             if (i > 24) break;
         }
+        betsEmbed.footer.text = `${i} Bets listed`
     }
     textChannel.send({
         embed: betsEmbed
@@ -178,22 +178,19 @@ async function prettyOutstandingBet(outstandingBet) {
     if (outstandingBet.betType === "classic") {
         let guildmember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user1.uuid)
         return ({
-            name: `${outstandingBet.betType} bet, Match: ${outstandingBet.fightEventID}, Amount: ${outstandingBet.betAmount}`,
-            value: `${guildmember1.displayName} voted for winner: ${outstandingBet.user1.fighterName}`,
+            name: `💵$${outstandingBet.betAmount}💵: ${guildmember1.displayName} bet for winner: 👑${outstandingBet.user1.fighterName}`,
+            value: `Classic bet, Match ID: ${outstandingBet.fightEventID}, Fight date: ${new Date(outstandingBet.fightEventDate).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric' })}`,
             url: "",
         });
     } else if (outstandingBet.betType === "1v1") {
         let guildmember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user1.uuid)
         let guildmember2 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user2.uuid)
         return ({
-            name: `${outstandingBet.betType} bet, Match: ${outstandingBet.fightEventID}, Amount: ${outstandingBet.betAmount}`,
-            value: `${guildmember1.displayName}-${outstandingBet.user1.fighterName}-${outstandingBet.odds} vs. ${guildmember2.displayName}-${outstandingBet.user2.fighterName}`,
+            name: `💵$${outstandingBet.betAmount}💵: ${guildmember1.displayName}-${outstandingBet.user1.fighterName}(${outstandingBet.odds.user1}) 🆚 ${guildmember2.displayName}-${outstandingBet.user2.fighterName}(${outstandingBet.odds.user2})`,
+            value: `1v1 bet, Match ID: ${outstandingBet.fightEventID}, Fight date: ${new Date(outstandingBet.fightEventDate).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric' })}`,
             url: "",
         });
     }
-}
-async function getUserBets() {
-
 }
 
 function isAdmin(userID) {
@@ -269,6 +266,26 @@ async function create1v1Bet() {
 
 }
 
+async function cancelBet(content) {
+    try {
+        let betType = content.split(" ")[0];
+        let fightID = content.split(" ")[1];
+        let user1ID = content.split(" ")[2];
+        let user2ID = content.split(" ")[3];
+        if (!isNaN(fightID)) {
+            if (await ufc.cancelBet(betType, fightID, user1ID, user2ID)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return false;
+    } catch (err) {
+        return false;
+    }
+
+}
+
 client.on('message', async (msg) => {
     if (msg.content.charAt(0) === config.commandPrefix) {
         textChannel = msg.channel;
@@ -280,6 +297,9 @@ client.on('message', async (msg) => {
         let contents = tmp.join(" ");
         //TODO adding more commands. Start with create bet, 1v1, then lastly refresh. 
         switch (cmd) {
+            case 'test':
+                console.log(ufc.upComingMatches);
+                break;
             //Display all valid bets. If @ member then display only that members valid bets.
             case 'bets':
                 displayBets(textChannel, msg.mentions);
@@ -339,6 +359,18 @@ client.on('message', async (msg) => {
                     textChannel.send("`You don't have permission for that command.`");
                 }
                 break;
+            //Cancels bet. .
+            case 'cancelbet':
+                if (isAdmin(msg.author.id)) {
+                    if (await cancelBet(contents)) {
+                        textChannel.send("`" + `Canceled bet` + "`")
+                    } else {
+                        textChannel.send("`" + `Failed to cancel bet.\nEx. $cancelbet classic 134234 userID1 userID2` + "`")
+                    }
+                } else {
+                    textChannel.send("`You don't have permission for that command.`");
+                }
+                break;
             // Takes money from user @ mentioned.
             case 'take':
             case 'remove':
@@ -356,6 +388,18 @@ client.on('message', async (msg) => {
                 break;
             //Refreshes match data retrieved from oddsharks.
             case 'refresh':
+            case 'refreshmatch':
+            case 'refreshmatches':
+            case 'refreshupcomingmatches':
+                if (isAdmin(msg.author.id)) {
+                    if (await ufc.refreshUpComingMatches()) {
+                        textChannel.send("`" + `Refreshed upcoming matches.` + "`")
+                    } else {
+                        textChannel.send("`" + `Failed to refresh upcoming matches.` + "`")
+                    }
+                } else {
+                    textChannel.send("`You don't have permission for that command.`");
+                }
                 break;
 
             case 'off':
@@ -366,9 +410,11 @@ client.on('message', async (msg) => {
                 // stop(msg.member);
                 break;
             case 'crash':
-                if (msg.author.id == config.discordDevID) {
+                if (isAdmin(msg.author.id)) {
                     msg.member.send("Crash command sent.");
                     process.exit(0);
+                } else {
+                    textChannel.send("`You don't have permission for that command.`");
                 }
             default:
                 break;
@@ -410,7 +456,12 @@ Sets up our config global and other necessary stuffs.
 */
 async function bootSequence() {
     await client.login(config.discordToken);
+    // console.log(ufc.upComingMatches);
+    // console.log(1234)
     await ufc.refreshUpComingMatches();
+    // console.log(123)
+    // await ufc.loadFromFile();
+    // console.log(ufc.upComingMatches);
     return true;
 }
 
