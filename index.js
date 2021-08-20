@@ -289,7 +289,7 @@ async function create1v1Bet(userID, content, mentions) {
     }
 }
 
-//$1v1 @user 1444342
+//$verify1v1 @user 1444342
 async function verify1v1(userID, content, mentions) {
     try {
         //Make sure arguments are proper first.
@@ -356,17 +356,23 @@ client.on('message', async (msg) => {
                 break;
             //Display all valid bets. If @ member then display only that members valid bets.
             case 'bets':
-                await displayBets(textChannel, msg.mentions);
+                if (!(await displayBets(textChannel, msg.mentions))) {
+                    textChannel.send("Failed to display bets.");
+                };
                 break;
             //Display all matches and their betting odds.
             case 'matches':
             case 'match':
             case 'upcomingmatches':
-                await displayMatches(textChannel, contents);
+                if (!(await displayMatches(textChannel, contents))) {
+                    textChannel.send("Failed to display matches.");
+                };
                 break;
             //Display user details
             case 'user':
-                await displayUser(textChannel, msg.mentions, msg.author);
+                if (!(await displayUser(textChannel, msg.mentions, msg.author))) {
+                    // textChannel.send("Failed to display user.");
+                };
                 break;
 
             //Action Commands:
@@ -394,10 +400,19 @@ client.on('message', async (msg) => {
                 break;
             //Creates a 1v1 bet between the user and the person @ mentioned. Also need a $ amount. Winner takes all.
             case '1v1':
-                await create1v1Bet();
+                if (await create1v1Bet(msg.author, contents, msg.mentions)) {
+                    textChannel.send("`Created 1v1 bet.`");
+                } else {
+                    //
+                    textChannel.send("`Failed to create 1v1 bet.\nEx. $1v1 @user 1444342 1 300`");
+                }
                 break;
             case 'verify1v1':
-                await verify1v1(msg.author.id, contents, msg.mentions);
+                if (await verify1v1(msg.author.id, contents, msg.mentions)) {
+                    textChannel.send("`Created 1v1 bet.`");
+                } else {
+                    textChannel.send("`Failed to create 1v1 bet.\n$verify1v1 @user 1444342`");
+                }
                 break;
 
             //Admin Commands:
@@ -444,6 +459,13 @@ client.on('message', async (msg) => {
                 }
                 break;
             //Refreshes match data retrieved from oddsharks.
+            case 'refreshfromfile':
+                if (await ufc.loadFromFile()) {
+                    textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
+                } else {
+                    textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
+                }
+                break;
             case 'refresh':
             case 'refreshmatch':
             case 'refreshmatches':
