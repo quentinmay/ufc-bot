@@ -16,11 +16,22 @@ let textChannel;
 
 client.on('ready', () => {
     setStatus();
+    setDefaultTextChannel();
     console.log("Started!");
 });
 
 
-
+/*
+Sets default textChannel from the defaultGuild.
+*/
+function setDefaultTextChannel() {
+    try {
+        let firstGuild = client.guilds.cache.find(guild => guild.id === config.defaultGuildID);
+        textChannel = firstGuild.channels.cache.find(channel => channel.name === config.defaultBotChannelName && channel.type == "text");
+    } catch (err) {
+        console.log("Error loading default textChannel/guild.");
+    }
+}
 
 /*
 Sets discord bot user activity. (My sample uses STREAMING so his icon is purple.)
@@ -31,6 +42,48 @@ function setStatus() {
         url: config.statusURL
     }).catch(console.error);
 }
+
+
+ufc.on("betResolved", async (bet, decision, winnerID, cashWon, userID) => {
+    try {
+        const resolvedBetEmbed = {
+            color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
+            footer: {
+                icon_url: client.user.displayAvatarURL(),
+                text: `footer text.`
+            },
+            title: "title",
+            author: {
+                name: "author"
+            },
+            fields: []
+        }
+        let thisUser = [bet.user1, bet.user2].find(u => u.uuid == userID);
+        if (decision == "WON") {
+            resolvedBetEmbed.color = 3654934; //Green
+            resolvedBetEmbed.author = ""
+            resolvedBetEmbed.title = `$${cashWon}💰 was added to your account.`
+            resolvedBetEmbed.footer.text = `${thisUser.fighterName} won the fight.`
+        } else if (decision == "DRAW") {
+            resolvedBetEmbed.color = 16314400; //Yellow
+            resolvedBetEmbed.author = ""
+            resolvedBetEmbed.title = `$${cashWon}💰 was added back to your account.`
+            resolvedBetEmbed.footer.text = `${thisUser.fighterName}'s fight was a draw.`
+        } else if (decision == "LOST") {
+            resolvedBetEmbed.color = 14951429; //Red
+            resolvedBetEmbed.author = ""
+            resolvedBetEmbed.title = `You lost your $${bet.betAmount}.`
+            resolvedBetEmbed.footer.text = `${thisUser.fighterName} lost the fight.`
+        }
+        textChannel.send({
+            content: `@${userID}`,
+            embed: resolvedBetEmbed
+        });
+    } catch (err) {
+        console.log(err);
+    }
+
+});
 
 
 
@@ -57,7 +110,7 @@ async function displayMatches(textChannel, contents) {
         let fightID = contents;
         let fight = await ufc.getFight(fightID);
         if (fight) {
-            textChannel.send("`" + `${fight.event_id} - 🟥1.${fight.away_name}(${fight.away_odds}) vs. 🟦2. ${fight.home_name}(${fight.home_odds})` + "`");
+            textChannel.send("`" + `${fight.event_id} - 🟥1.${fight.away_name}(${(fight.away_odds > 0) ? "+" : ""}${fight.away_odds}) vs. 🟦2. ${fight.home_name}(${(fight.home_odds > 0) ? "+" : ""}${fight.home_odds})` + "`");
         } else {
             textChannel.send("`This fight doesn't exist.`");
         }
@@ -82,7 +135,7 @@ async function displayMatches(textChannel, contents) {
             if (!upcomingMatch.away_odds || !upcomingMatch.home_odds) continue; //skip matches with unknown odds.
             matchesEmbed.fields.push({
                 name: `${upcomingMatch.event_id} - 🟥1. ${upcomingMatch.away_name} vs. 🟦2. ${upcomingMatch.home_name}`,
-                value: `Odds: ${upcomingMatch.away_odds} vs. ${upcomingMatch.home_odds}`,
+                value: `Odds: ${(upcomingMatch.away_odds > 0) ? "+" : ""}${upcomingMatch.away_odds} vs. ${(upcomingMatch.home_odds > 0) ? "+" : ""}${upcomingMatch.home_odds}`,
                 url: "",
             })
             i++;
@@ -100,45 +153,50 @@ async function displayMatches(textChannel, contents) {
 }
 
 async function displayBets(textChannel, mentions) {
-    const betsEmbed = {
-        color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
-        footer: {
-            icon_url: client.user.displayAvatarURL(),
-            text: `Bets listed.`
-        },
-        author: {
-            name: "Bets",
-            url: "",
-            icon_url: client.user.displayAvatarURL()
-        },
-        fields: []
-    }
-
-    if (mentions.users.size > 0) {
-        let targetUser = mentions.users.first().id;
-        let ufcUser = await ufc.findUser(targetUser);
-        let outstandingBets = ufcUser.currentBets;
-
-        let i = 0;
-        for (let outstandingBet of outstandingBets) {
-            betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
-            i++;
-            if (i > 24) break;
+    try {
+        const betsEmbed = {
+            color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
+            footer: {
+                icon_url: client.user.displayAvatarURL(),
+                text: `Bets listed.`
+            },
+            author: {
+                name: "Bets",
+                url: "",
+                icon_url: client.user.displayAvatarURL()
+            },
+            fields: []
         }
-        betsEmbed.footer.text = `${i} Bets listed`
 
-    } else {//No user mentioned. Just display all bets.
-        let i = 0;
-        for (let outstandingBet of ufc.outstandingBets) {
-            betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
-            i++;
-            if (i > 24) break;
+        if (mentions.users.size > 0) {
+            let targetUser = mentions.users.first().id;
+            let ufcUser = await ufc.findUser(targetUser);
+            let outstandingBets = ufcUser.currentBets;
+
+            let i = 0;
+            for (let outstandingBet of outstandingBets) {
+                betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
+                i++;
+                if (i > 24) break;
+            }
+            betsEmbed.footer.text = `${i} Bets listed`
+
+        } else {//No user mentioned. Just display all bets.
+            let i = 0;
+            for (let outstandingBet of ufc.outstandingBets) {
+                betsEmbed.fields.push(await prettyOutstandingBet(outstandingBet))
+                i++;
+                if (i > 24) break;
+            }
+            betsEmbed.footer.text = `${i} Bets listed`
         }
-        betsEmbed.footer.text = `${i} Bets listed`
+        textChannel.send({
+            embed: betsEmbed
+        });
+        return true;
+    } catch (err) {
+        return false;
     }
-    textChannel.send({
-        embed: betsEmbed
-    });
 
 }
 
@@ -186,7 +244,7 @@ async function prettyOutstandingBet(outstandingBet) {
         let guildmember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user1.uuid)
         let guildmember2 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, outstandingBet.user2.uuid)
         return ({
-            name: `💵$${outstandingBet.betAmount}💵: ${guildmember1.displayName}-${outstandingBet.user1.fighterName}(${outstandingBet.odds.user1}) 🆚 ${guildmember2.displayName}-${outstandingBet.user2.fighterName}(${outstandingBet.odds.user2})`,
+            name: `💵$${outstandingBet.betAmount}💵: ${guildmember1.displayName}-${outstandingBet.user1.fighterName}(${(outstandingBet.odds.user1 > 0) ? "+" : ""}${outstandingBet.odds.user1}) 🆚 ${guildmember2.displayName}-${outstandingBet.user2.fighterName}(${(outstandingBet.odds.user2 > 0) ? "+" : ""}${outstandingBet.odds.user2})`,
             value: `1v1 bet, Match ID: ${outstandingBet.fightEventID}, Fight date: ${new Date(outstandingBet.fightEventDate).toLocaleString([], { year: 'numeric', month: 'numeric', day: 'numeric' })}`,
             url: "",
         });
@@ -355,6 +413,14 @@ client.on('message', async (msg) => {
                 console.log(ufc.upComingMatches);
                 break;
             //Display all valid bets. If @ member then display only that members valid bets.
+            case 'resolvebets':
+                if (await ufc.resolveBets()) {
+                    textChannel.send("Successfuly resolved bets.");
+
+                } else {
+                    textChannel.send("Failed to resolve bets.");
+                }
+                break;
             case 'bets':
                 if (!(await displayBets(textChannel, msg.mentions))) {
                     textChannel.send("Failed to display bets.");
@@ -369,6 +435,7 @@ client.on('message', async (msg) => {
                 };
                 break;
             //Display user details
+            case 'balance':
             case 'user':
                 if (!(await displayUser(textChannel, msg.mentions, msg.author))) {
                     // textChannel.send("Failed to display user.");
@@ -394,7 +461,7 @@ client.on('message', async (msg) => {
                     await displayBets(textChannel, msg.mentions);
 
                 } else {
-                    textChannel.send("`" + `Couldn't create this bet. Make sure you use the right arguments. (fightID, winner (1 or 2), amount) Ex. "$bet 1457586 1 300" ` + "`");
+                    textChannel.send("`" + `Couldn't create this bet. Make sure you use the right arguments. (fightID, winner (1 or 2), amount) \nEx. "$bet 1457586 1 300" ` + "`");
 
                 }
                 break;
@@ -461,6 +528,27 @@ client.on('message', async (msg) => {
             //Refreshes match data retrieved from oddsharks.
             case 'refreshfromfile':
                 if (await ufc.loadFromFile()) {
+                    textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
+                } else {
+                    textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
+                }
+                break;
+            case 'refreshbefore':
+                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDatabefore.json")) {
+                    textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
+                } else {
+                    textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
+                }
+                break;
+            case 'refreshafter':
+                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDataafter.json")) {
+                    textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
+                } else {
+                    textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
+                }
+                break;
+            case 'refreshdraw':
+                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDatadraw.json")) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
@@ -537,7 +625,7 @@ async function bootSequence() {
     await client.login(config.discordToken);
     // console.log(ufc.upComingMatches);
     // console.log(1234)
-    await ufc.refreshUpComingMatches();
+    // await ufc.refreshUpComingMatches();
     // console.log(123)
     // await ufc.loadFromFile();
     // console.log(ufc.upComingMatches);
