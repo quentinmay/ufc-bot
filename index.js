@@ -5,7 +5,7 @@ let client = new Client();
 const config = require("./config.json")
 const path = require('path');
 const UFCgame = require('ufc-betting-game');
-const Bet = require('../UFC-Web-Scraper/utils/Bet');
+const Bet = require('./node_modules/ufc-betting-game/utils/Bet');
 
 let ufc = new UFCgame();
 
@@ -252,7 +252,7 @@ async function prettyOutstandingBet(outstandingBet) {
 }
 
 function isAdmin(userID) {
-    return userID == config.discordDevID;
+    return config.discordDevID.indexOf(userID) != -1;
 
 }
 
