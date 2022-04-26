@@ -672,7 +672,7 @@ Sets up our config global and other necessary stuffs.
 */
 async function bootSequence() {
     await client.login(config.discordToken);
-    await ufc.initialize();
+    unitTests();
     // console.log(ufc.upComingMatches);
     // console.log(1234)
     // await ufc.refreshUpComingMatches();
@@ -683,3 +683,57 @@ async function bootSequence() {
 }
 
 bootSequence().catch(err => console.error(err))
+
+// ----------- TESTS -----------------------------------------------------------------------
+
+// MAIN UNIT TEST SUITE FUNCTION
+async function unitTests() {
+    console.log(await testAddUser());
+}
+
+// TEST -- ADD USER -------------------------------------
+async function testAddUser() {
+    var test = new UFCgame();
+    // await test.loadFromFile();
+    await test.refreshUpComingMatches();
+    test.addUser(123, "john");
+
+    // indexOf checks if users contains a user with a uid 123
+    var contains = test.users.indexOf(u => u.uuid == 123);
+
+    if (contains) {
+        return true 
+    } else {
+        return false;
+    }
+}
+
+
+function testAddRemoveMoney() {
+    
+}
+
+    // var test = new UFC();
+    // await test.loadFromFile();
+    // await test.refreshUpComingMatches();
+    // await test.resolveBets();
+
+    // console.log(test.previousMatches)
+    // console.log(test.upComingMatches.length);
+    // console.log(test.previousMatches.length);
+    // var john = await test.findUser(1234);
+    // var bob = await test.findUser(456);
+    // var fight = test.getFight();
+    // test.addUser(123, "john");
+    // test.addUser(456, "bob");
+    // console.log(test.outstandingBets);
+    // test.takeMoney(456, 777)
+    // test.addMoney(123, 4);
+    // await test.refreshUpComingMatches();
+    // console.log(test.upComingMatches);
+    // console.log(test.previousMatches);
+    // await test.addBet(new Bet("1v1", 200, 1382448, 1615694400000, {user: john, fighterName:"M Nicolau"}, {user: bob, fighterName:"T Ulanbekov"}, {user1: "125", user2: "-145"} ))
+    // await test.addBet(new Bet("classic", 300, 1370716, 1615096800000, {user: john, fighterName:"I Adesanya"}, null, {user1: "-250", user2: null} ))
+    // await test.resolveBets();
+    // await test.cancelBet("classic", john, null);
+    // console.log(test.outstandingBets);
