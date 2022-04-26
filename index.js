@@ -67,6 +67,7 @@ function setDefaultTextChannel() {
         let firstGuild = client.guilds.cache.find(guild => guild.id === config.defaultGuildID);
         textChannel = firstGuild.channels.cache.find(channel => channel.name === config.defaultBotChannelName && channel.type == "text");
     } catch (err) {
+        console.log(err);
         console.log("Error loading default textChannel/guild.");
     }
 }
@@ -105,13 +106,18 @@ ufc.on("betResolved", async (bet, decision, winnerID, cashWon) => {
                 resolvedBetEmbed.title = `$${cashWon}💰 was added to your account.`
             else resolvedBetEmbed.title = `You don't have to do "${cashWon}"`
             resolvedBetEmbed.footer.text = `${thisUser.fighterName} won the fight.`
+            let member = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, winnerID)
+            textChannel.send({
+                content: `${member}`,
+                embed: resolvedBetEmbed
+            });
         } else if (decision == "DRAW") {
             resolvedBetEmbed.color = 16314400; //Yellow
             resolvedBetEmbed.author = ""
             if (!isNaN(cashWon))
                 resolvedBetEmbed.title = `$${cashWon}💰 was added back to your account.`
             else resolvedBetEmbed.title = `Neither of you has to do the dare.`
-        resolvedBetEmbed.footer.text = `${thisUser.fighterName}'s fight was a draw.`
+            resolvedBetEmbed.footer.text = `${thisUser.fighterName}'s fight was a draw.`
         } else if (decision == "LOST") {
             resolvedBetEmbed.color = 14951429; //Red
             resolvedBetEmbed.author = ""
@@ -120,10 +126,8 @@ ufc.on("betResolved", async (bet, decision, winnerID, cashWon) => {
             else resolvedBetEmbed.title = `You lost your bet. You have to do "${cashWon}"`
             resolvedBetEmbed.footer.text = `${thisUser.fighterName} lost the fight.`
         }
-        textChannel.send({
-            content: `@${userID}`,
-            embed: resolvedBetEmbed
-        });
+        
+
     } catch (err) {
         console.log(err);
     }
@@ -240,6 +244,7 @@ async function displayBets(textChannel, mentions) {
         });
         return true;
     } catch (err) {
+        console.log(err)
         return false;
     }
 
@@ -359,7 +364,6 @@ async function createClassicBet(userID, content) {
 }
 //$1v1 @user 1444342 1 300
 async function create1v1Bet(userID, content, mentions) {
-    // await test.addBet(new Bet("1v1", 200, 1382448, 1615694400000, {user: john, fighterName:"M Nicolau"}, {user: bob, fighterName:"T Ulanbekov"}, {user1: "125", user2: "-145"} ))
 
     try {
         //Make sure arguments are proper first.
@@ -392,6 +396,81 @@ async function create1v1Bet(userID, content, mentions) {
     }
 }
 
+//$1v1odds @user 1444342 1 300
+async function create1v1OddsBet(userID, content, mentions) {
+
+    try {
+        //Make sure arguments are proper first.
+        let arguments = content.split(" ");
+        if (arguments.length != 4) throw new Error("Creating 1v1odds bet requires 4 arguments.");
+        if (isNaN(arguments[1]) || isNaN(arguments[2] || isNaN(arguments[3]))) throw new Error("1v1odds bet requires fightID, fighterID, and money to be integers.");
+        if (arguments[2] != 1 && arguments[2] != 2) throw new Error("1v1odds bet requires 1 or 2 for winner.");
+
+
+        //make sure user exists and has enough money.
+        let targetUser = await ufc.findUser(userID);
+        let secondUserID = mentions.users.first().id;
+        let secondUser = await ufc.findUser(secondUserID);
+
+        let fight = await ufc.getFight(arguments[1]);
+        if (!fight) throw new Error("Fight with this fightEventID doesn't exist");
+
+        let user1FighterName = (arguments[2] == 1 ? fight.away_name : fight.home_name);
+        let user2FighterName = (arguments[2] == 1 ? fight.home_name : fight.away_name);
+        let user1Odds = (arguments[2] == 1 ? fight.away_odds : fight.home_odds);
+        let user2Odds = (arguments[2] == 1 ? fight.home_odds : fight.away_odds)
+
+        let user1MoneyInput = parseInt(arguments[3]);
+        let user2MoneyInput = await ufc.calcMoneyWon(user1Odds, user1MoneyInput);
+
+        if (!targetUser || !secondUser) throw new Error("One of the user's doesn't have an account.");
+        if (targetUser.balance < user1MoneyInput || secondUser.balance < user2MoneyInput) throw new Error("User doesn't have enough money to make this bet.");
+
+
+        let newBet = new Bet("1v1odds", user1MoneyInput, fight.event_id, fight.event_date, { uuid: userID, fighterName: user1FighterName }, { uuid: secondUserID, fighterName: user2FighterName }, { user1: user1Odds, user2: user2Odds })
+
+        return (await ufc.addBet(newBet));
+
+
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
+}
+
+//$calcodds 1444342 1 300
+async function calcOdds(content) {
+    try {
+        //Make sure arguments are proper first.
+        let arguments = content.split(" ");
+        if (arguments.length != 3) throw new Error("Calculating winnings requires 3 arguments.");
+        if (isNaN(arguments[0]) || isNaN(arguments[1] || isNaN(arguments[2]))) throw new Error("1v1odds bet requires fightID, fighterID, and money to be integers.");
+        if (arguments[1] != 1 && arguments[1] != 2) throw new Error("1v1odds bet requires 1 or 2 for winner.");
+
+
+        let fight = await ufc.getFight(arguments[0]);
+        if (!fight) throw new Error("Fight with this fightEventID doesn't exist");
+
+        let user1FighterName = (arguments[1] == 1 ? fight.away_name : fight.home_name);
+        let user2FighterName = (arguments[1] == 1 ? fight.home_name : fight.away_name);
+        let user1Odds = (arguments[1] == 1 ? fight.away_odds : fight.home_odds);
+        let user2Odds = (arguments[1] == 1 ? fight.home_odds : fight.away_odds)
+
+        let user1MoneyInput = parseInt(arguments[2]);
+        let user2MoneyInput = await ufc.calcMoneyWon(user1Odds, user1MoneyInput);
+
+        let user1Gains = await ufc.calcMoneyWon(user1Odds, user1MoneyInput);
+        let user2Gains = await ufc.calcMoneyWon(user2Odds, user2MoneyInput);
+
+        return ({user1: {odds: user1Odds, fighterName: user1FighterName, moneyInput: user1MoneyInput, gain: user1Gains}, user2: {odds: user2Odds, fighterName: user2FighterName, moneyInput: user2MoneyInput, gain: user2Gains}, fight: fight});
+
+
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
+}
+
 //$verify1v1 @user 1444342
 async function verify1v1(userID, content, mentions) {
     try {
@@ -406,8 +485,10 @@ async function verify1v1(userID, content, mentions) {
         let secondUser = await ufc.findUser(userID);
         if (!targetUser || !secondUser) throw new Error("One of the user's doesn't have an account.");
 
-        let bet = await ufc.verify1v1Bet("1v1", arguments[1], targetUserID, userID);
-        if (targetUser.balance < bet.betAmount || secondUser.balance < bet.betAmount) throw new Error("User doesn't have enough money to make this bet.");
+        let tmpBet = await ufc.findOutstandingBetWithFightID("1v1", arguments[1], userID, targetUserID);
+
+        if (targetUser.balance < tmpBet.betAmount || secondUser.balance < tmpBet.betAmount) throw new Error("User doesn't have enough money to make this bet.");
+        let bet = await ufc.verify1v1Bet("1v1", arguments[1], userID, targetUserID);
         // verify1v1Bet(betType, fightID, user1ID, user2ID)
         if (bet) {
             if (!isNaN(bet.betAmount)) {
@@ -420,12 +501,50 @@ async function verify1v1(userID, content, mentions) {
             } else {
                 return true;
             }
-        } 
+        }
         throw new Error("Couldn't add new bet.");
     } catch (err) {
+        console.log(err);
         return false;
     }
 }
+//$verify1v1odds @user 1444342
+async function verify1v1odds(userID, content, mentions) {
+    try {
+        //Make sure arguments are proper first.
+        let arguments = content.split(" ");
+        if (arguments.length != 2) throw new Error("Creating 1v1 bet requires 2 arguments.");
+        if (isNaN(arguments[1])) throw new Error("1v1 bet requires 1 integer arguments.");
+
+        //make sure user exists and has enough money.
+        let targetUserID = mentions.users.first().id;
+        let targetUser = await ufc.findUser(targetUserID);
+        let secondUser = await ufc.findUser(userID);
+        if (!targetUser || !secondUser) throw new Error("One of the user's doesn't have an account.");
+
+        let tmpBet = await ufc.findOutstandingBetWithFightID("1v1odds", arguments[1], targetUserID, userID);
+        let user1MoneyInput = tmpBet.betAmount;
+        let user2MoneyInput = await ufc.calcMoneyWon(tmpBet.odds.user1, tmpBet.betAmount);
+
+        if (targetUser.balance < user1MoneyInput || secondUser.balance < user2MoneyInput) throw new Error("User doesn't have enough money to make this bet.");
+
+        let bet = await ufc.verify1v1Bet("1v1odds", arguments[1], targetUserID, userID);
+        // verify1v1Bet(betType, fightID, user1ID, user2ID)
+        if (bet) {
+            if (await ufc.takeMoney(targetUserID, user1MoneyInput) && await ufc.takeMoney(userID, user2MoneyInput)) { //If take money worked.
+                return bet;
+            } else {
+                await ufc.addMoney(targetUserID, user1MoneyInput) // give back money because adding new bet didnt work.
+                await ufc.addMoney(userID, user2MoneyInput)
+            }
+        }
+        throw new Error("Couldn't add new bet.");
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
+}
+
 async function cancelBet(content) {
     try {
         let betType = content.split(" ")[0];
@@ -441,6 +560,7 @@ async function cancelBet(content) {
         }
         return false;
     } catch (err) {
+        console.log(err);
         return false;
     }
 
@@ -459,7 +579,7 @@ client.on('message', async (msg) => {
         //TODO test resolveBets 
         switch (cmd) {
             case 'test':
-                console.log(ufc.upComingMatches);
+                textChannel.send(`$verify1v1odds ${msg.author} 1646096`)
                 break;
             //Display all valid bets. If @ member then display only that members valid bets.
             case 'resolvebets':
@@ -516,18 +636,58 @@ client.on('message', async (msg) => {
                 break;
             //Creates a 1v1 bet between the user and the person @ mentioned. Also need a $ amount. Winner takes all.
             case '1v1':
-                if (await create1v1Bet(msg.author, contents, msg.mentions)) {
+                if (await create1v1Bet(msg.author.id, contents, msg.mentions)) {
                     textChannel.send("`Created 1v1 bet.`");
                 } else {
                     //
                     textChannel.send("`Failed to create 1v1 bet.\nEx. $1v1 @user 1444342 1 300`");
                 }
                 break;
+            case '1v1odds':
+                if (await create1v1OddsBet(msg.author.id, contents, msg.mentions)) {
+                    let arguments = contents.split(" ");
+                    let fight = await ufc.getFight(arguments[1]);
+                    let user1FighterName = (arguments[2] == 1 ? fight.away_name : fight.home_name);
+                    let user2FighterName = (arguments[2] == 1 ? fight.home_name : fight.away_name);
+                    let user1Odds = (arguments[2] == 1 ? fight.away_odds : fight.home_odds);
+                    let user2Odds = (arguments[2] == 1 ? fight.home_odds : fight.away_odds)
+
+                    let user1MoneyInput = parseInt(arguments[3]);
+                    let user2MoneyInput = await ufc.calcMoneyWon(user1Odds, user1MoneyInput);
+
+                    let user1Gains = await ufc.calcMoneyWon(user1Odds, user1MoneyInput);
+                    let user2Gains = await ufc.calcMoneyWon(user2Odds, user2MoneyInput);
+
+                    let guildMember1 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, msg.author.id)
+                    let guildMember2 = await getGuildMemberFromServerIDAndUserID(textChannel.guild.id, msg.mentions.users.first().id)
+                    textChannel.send(`Created 1v1 odds bet. ${guildMember1} pays ${user1MoneyInput} on ${user1FighterName}(${user1Odds}) odds to win $${user1Gains} totaling $${user1Gains + user1MoneyInput}\n${guildMember2} pays $${user2MoneyInput} on ${user2FighterName}(${user2Odds}) odds to win $${user2Gains} totaling $${user2Gains + user2MoneyInput}`);
+                    textChannel.send(`${guildMember2} Verify with '$verify1v1odds ${guildMember1} ${fight.event_id}'`)
+                } else {
+                    //
+                    textChannel.send("`Failed to create 1v1 bet.\nEx. $1v1 @user 1444342 1 300`");
+                }
+                break;
+            case 'calcodds':
+                let response = await calcOdds(contents);
+                if (response) {
+                    textChannel.send(`You pay $${response.user1.moneyInput} on ${response.user1.fighterName}(${response.user1.odds}) odds to win $${response.user1.gain} totaling $${response.user1.gain + response.user1.moneyInput}\nPlayer2 pays $${response.user2.moneyInput} on ${response.user2.fighterName}(${response.user2.odds}) odds to win $${response.user2.gain} totaling $${response.user2.gain + response.user2.moneyInput}`);
+                }else {
+                    textChannel.send("`Failed to calculate odds for this fight.\nEx. $calcodds 1444342 1 300`");
+                }
+
+                break;
             case 'verify1v1':
                 if (await verify1v1(msg.author.id, contents, msg.mentions)) {
-                    textChannel.send("`Created 1v1 bet.`");
+                    textChannel.send("`Verified 1v1 bet.`");
                 } else {
                     textChannel.send("`Failed to create 1v1 bet.\n$verify1v1 @user 1444342`");
+                }
+                break;
+            case 'verify1v1odds':
+                if (await verify1v1odds(msg.author.id, contents, msg.mentions)) {
+                    textChannel.send("`Verified 1v1odds bet.`");
+                } else {
+                    textChannel.send("`Failed to create 1v1 bet.\n$verify1v1odds @user 1444342`");
                 }
                 break;
 
@@ -679,7 +839,85 @@ async function bootSequence() {
     // console.log(123)
     // await ufc.loadFromFile();
     // console.log(ufc.upComingMatches);
+    // await test1v1Odds();
     return true;
+}
+
+async function test1v1Odds() {
+    console.log("making test");
+    var test = new UFCgame(null, null, null, null, null, `${__dirname}/testUsers.json`, `${__dirname}/testBets.json`, `${__dirname}/testMatchData.json`, `${__dirname}/testPreviousMatches.json`, `${__dirname}/testResolvedBets.json`);
+    await test.initialize();
+
+    test.on("betResolved", async (bet, decision, winnerID, cashWon) => {
+        console.log("bet resolved.", bet)
+        console.log(decision, winnerID, cashWon)
+    });
+    await test.loadFromFile(`${__dirname}/oldMatchData.json`);
+
+    await test.addUser(453255807119917066, "john")
+    await test.addUser(803371402203758682, "smith")
+    await test.addMoney(453255807119917066, 1000)
+    await test.addMoney(803371402203758682, 1000)
+
+    let user1 = await test.findUser(453255807119917066);
+    let user2 = await test.findUser(803371402203758682);
+
+    let user1Odds = -138;
+    let user2Odds = 110;
+    let user1MoneyInput = 200;
+    let user2MoneyInput = await test.calcMoneyWon(user1Odds, user1MoneyInput);
+    await test.addBet(new Bet("1v1odds", user1MoneyInput, 1646096, 61270400000, { uuid: user1.uuid, fighterName: "R Font" }, { uuid: user2.uuid, fighterName: "M Vera" }, { user1: user1Odds, user2: user2Odds }))
+
+    await test.takeMoney(453255807119917066, user1MoneyInput);
+    await test.takeMoney(803371402203758682, user2MoneyInput);
+
+
+    let bet = await test.verify1v1Bet("1v1", 1646096, 803371402203758682, 453255807119917066);
+    if (bet) {
+        console.log("1v1odds bet verified", bet)
+    }
+
+
+
+    // return;
+    await test.loadFromFile(`${__dirname}/newMatchData.json`);
+    await test.resolveBets();
+    console.log(test.users)
+    //Delete old test files.
+    fs.unlinkSync(test.previousMatchesPath)
+    fs.unlinkSync(test.betsPath)
+    fs.unlinkSync(test.usersPath)
+    fs.unlinkSync(test.resolvedBetsPath)
+    fs.unlinkSync(test.matchDataPath)
+
+
+
+
+
+
+    // console.log(test.upComingMatches);
+    // console.log(test.previousMatches);
+    // await test.refreshUpComingMatches();
+    // test.addUser(123, "john");
+
+    // console.log(test.upComingMatches.length);
+    // console.log(test.previousMatches.length);
+    // var john = await test.findUser(1234);
+    // var bob = await test.findUser(456);
+    // var fight = test.getFight()
+    // test.addUser(123, "john");
+    // test.addUser(456, "bob");
+    // console.log(test.outstandingBets);
+    // test.takeMoney(456, 777)
+    // test.addMoney(123, 4);
+    // await test.refreshUpComingMatches();
+    // console.log(test.upComingMatches);
+    // console.log(test.previousMatches);
+    // await test.addBet(new Bet("1v1", 200, 1382448, 1615694400000, {user: john, fighterName:"M Nicolau"}, {user: bob, fighterName:"T Ulanbekov"}, {user1: "125", user2: "-145"} ))
+    // await test.addBet(new Bet("classic", 300, 1370716, 1615096800000, {user: john, fighterName:"I Adesanya"}, null, {user1: "-250", user2: null} ))
+    // await test.resolveBets();
+    // await test.cancelBet("classic", john, null);
+    // console.log(test.outstandingBets);
 }
 
 bootSequence().catch(err => console.error(err))
