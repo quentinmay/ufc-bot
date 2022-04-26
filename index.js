@@ -9,7 +9,6 @@ const Bet = require('./node_modules/ufc-betting-game/utils/Bet');
 
 let ufc = new UFCgame();
 
-
 let textChannel;
 
 
@@ -44,7 +43,7 @@ function setStatus() {
 }
 
 
-ufc.on("betResolved", async (bet, decision, winnerID, cashWon, userID) => {
+ufc.on("betResolved", async (bet, decision, winnerID, cashWon) => {
     try {
         const resolvedBetEmbed = {
             color: 10181046, //this is purple in their weird color system thing https://leovoel.github.io/embed-visualizer/
@@ -58,21 +57,28 @@ ufc.on("betResolved", async (bet, decision, winnerID, cashWon, userID) => {
             },
             fields: []
         }
-        let thisUser = [bet.user1, bet.user2].find(u => u.uuid == userID);
+        let thisUser = [bet.user1, bet.user2].find(u => u.uuid == winnerID);
+        console.log(thisUser)
         if (decision == "WON") {
             resolvedBetEmbed.color = 3654934; //Green
             resolvedBetEmbed.author = ""
-            resolvedBetEmbed.title = `$${cashWon}💰 was added to your account.`
+            if (!isNaN(cashWon)) //If its not a number, that means its a dare bet.
+                resolvedBetEmbed.title = `$${cashWon}💰 was added to your account.`
+            else resolvedBetEmbed.title = `You don't have to do "${cashWon}"`
             resolvedBetEmbed.footer.text = `${thisUser.fighterName} won the fight.`
         } else if (decision == "DRAW") {
             resolvedBetEmbed.color = 16314400; //Yellow
             resolvedBetEmbed.author = ""
-            resolvedBetEmbed.title = `$${cashWon}💰 was added back to your account.`
-            resolvedBetEmbed.footer.text = `${thisUser.fighterName}'s fight was a draw.`
+            if (!isNaN(cashWon))
+                resolvedBetEmbed.title = `$${cashWon}💰 was added back to your account.`
+            else resolvedBetEmbed.title = `Neither of you has to do the dare.`
+        resolvedBetEmbed.footer.text = `${thisUser.fighterName}'s fight was a draw.`
         } else if (decision == "LOST") {
             resolvedBetEmbed.color = 14951429; //Red
             resolvedBetEmbed.author = ""
-            resolvedBetEmbed.title = `You lost your $${bet.betAmount}.`
+            if (!isNaN(cashWon))
+                resolvedBetEmbed.title = `You lost your $${cashWon}.`
+            else resolvedBetEmbed.title = `You lost your bet. You have to do "${cashWon}"`
             resolvedBetEmbed.footer.text = `${thisUser.fighterName} lost the fight.`
         }
         textChannel.send({
@@ -299,7 +305,7 @@ async function createClassicBet(userID, content) {
         // console.log(fight);
         if (!fight) throw new Error("Fight with this fightEventID doesn't exist");
         if (await ufc.takeMoney(userID, arguments[2])) { //If take money worked.
-            let newBet = new Bet("classic", arguments[2], fight.event_id, fight.event_date, { uuid: targetUser.uuid, fighterName: (arguments[1] == 1 ? fight.away_name : fight.home_name) }, null, { user1: (arguments[1] == 1 ? fight.away_odds : fight.home_odds), user2: null });
+            let newBet = new Bet("classic", parseInt(arguments[2]), fight.event_id, fight.event_date, { uuid: targetUser.uuid, fighterName: (arguments[1] == 1 ? fight.away_name : fight.home_name) }, null, { user1: (arguments[1] == 1 ? fight.away_odds : fight.home_odds), user2: null });
             if (await ufc.addBet(newBet)) {
                 return newBet;
             } else {
@@ -319,8 +325,8 @@ async function create1v1Bet(userID, content, mentions) {
     try {
         //Make sure arguments are proper first.
         let arguments = content.split(" ");
-        if (arguments.length != 4) throw new Error("Creating 1v1 bet requires 4 arguments.");
-        if (isNaN(arguments[1]) || isNaN(arguments[2] || isNaN(arguments[3]))) throw new Error("1v1 bet requires 3 integer arguments.");
+        if (arguments.length < 4) throw new Error("Creating 1v1 bet requires atleast 4 arguments.");
+        if (isNaN(arguments[1]) || isNaN(arguments[2])) throw new Error("1v1 bet requires fightID and fighterID to be intergers.");
         if (arguments[2] != 1 && arguments[2] != 2) throw new Error("1v1 bet requires 1 or 2 for winner.");
 
 
@@ -334,7 +340,7 @@ async function create1v1Bet(userID, content, mentions) {
 
         let fight = await ufc.getFight(arguments[1]);
         if (!fight) throw new Error("Fight with this fightEventID doesn't exist");
-        let newBet = new Bet("1v1", arguments[3], fight.event_id, fight.event_date,
+        let newBet = new Bet("1v1", (arguments.length == 4) ? parseInt(arguments[3]) : arguments.slice((arguments.length - 3) * -1).join(" "), fight.event_id, fight.event_date,
             { uuid: targetUser.uuid, fighterName: (arguments[2] == 1 ? fight.away_name : fight.home_name) }, //user1
             { uuid: secondUserID, fighterName: (arguments[2] == 1 ? fight.home_name : fight.away_name) }, //user2
             { user1: (arguments[2] == 1 ? fight.away_odds : fight.home_odds), user2: (arguments[2] == 1 ? fight.home_odds : fight.away_odds) }); //odds
@@ -365,13 +371,17 @@ async function verify1v1(userID, content, mentions) {
         if (targetUser.balance < bet.betAmount || secondUser.balance < bet.betAmount) throw new Error("User doesn't have enough money to make this bet.");
         // verify1v1Bet(betType, fightID, user1ID, user2ID)
         if (bet) {
-            if (await ufc.takeMoney(userID, bet.betAmount) && await ufc.takeMoney(targetUserID, bet.betAmount)) { //If take money worked.
-                return true;
+            if (!isNaN(bet.betAmount)) {
+                if (await ufc.takeMoney(userID, bet.betAmount) && await ufc.takeMoney(targetUserID, bet.betAmount)) { //If take money worked.
+                    return true;
+                } else {
+                    await ufc.addMoney(userID, bet.betAmount) // give back money because adding new bet didnt work.
+                    await ufc.addMoney(targetUserID, bet.betAmount)
+                }
             } else {
-                await ufc.addMoney(userID, bet.betAmount) // give back money because adding new bet didnt work.
-                await ufc.addMoney(targetUserID, bet.betAmount)
+                return true;
             }
-        }
+        } 
         throw new Error("Couldn't add new bet.");
     } catch (err) {
         return false;
@@ -534,14 +544,14 @@ client.on('message', async (msg) => {
                 }
                 break;
             case 'refreshbefore':
-                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDatabefore.json")) {
+                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/oldMatchData.json")) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
                 }
                 break;
             case 'refreshafter':
-                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDataafter.json")) {
+                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/newMatchData.json")) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
@@ -623,6 +633,7 @@ Sets up our config global and other necessary stuffs.
 */
 async function bootSequence() {
     await client.login(config.discordToken);
+    await ufc.initialize();
     // console.log(ufc.upComingMatches);
     // console.log(1234)
     // await ufc.refreshUpComingMatches();
