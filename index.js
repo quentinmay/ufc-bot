@@ -840,60 +840,9 @@ async function bootSequence() {
     // await ufc.loadFromFile();
     // console.log(ufc.upComingMatches);
     // await test1v1Odds();
+    await unitTests()
     return true;
 }
-
-async function test1v1Odds() {
-    console.log("making test");
-    var test = new UFCgame(null, null, null, null, null, `${__dirname}/testUsers.json`, `${__dirname}/testBets.json`, `${__dirname}/testMatchData.json`, `${__dirname}/testPreviousMatches.json`, `${__dirname}/testResolvedBets.json`);
-    await test.initialize();
-
-    test.on("betResolved", async (bet, decision, winnerID, cashWon) => {
-        console.log("bet resolved.", bet)
-        console.log(decision, winnerID, cashWon)
-    });
-    await test.loadFromFile(`${__dirname}/oldMatchData.json`);
-
-    await test.addUser(453255807119917066, "john")
-    await test.addUser(803371402203758682, "smith")
-    await test.addMoney(453255807119917066, 1000)
-    await test.addMoney(803371402203758682, 1000)
-
-    let user1 = await test.findUser(453255807119917066);
-    let user2 = await test.findUser(803371402203758682);
-
-    let user1Odds = -138;
-    let user2Odds = 110;
-    let user1MoneyInput = 200;
-    let user2MoneyInput = await test.calcMoneyWon(user1Odds, user1MoneyInput);
-    await test.addBet(new Bet("1v1odds", user1MoneyInput, 1646096, 61270400000, { uuid: user1.uuid, fighterName: "R Font" }, { uuid: user2.uuid, fighterName: "M Vera" }, { user1: user1Odds, user2: user2Odds }))
-
-    await test.takeMoney(453255807119917066, user1MoneyInput);
-    await test.takeMoney(803371402203758682, user2MoneyInput);
-
-
-    let bet = await test.verify1v1Bet("1v1", 1646096, 803371402203758682, 453255807119917066);
-    if (bet) {
-        console.log("1v1odds bet verified", bet)
-    }
-
-
-
-    // return;
-    await test.loadFromFile(`${__dirname}/newMatchData.json`);
-    await test.resolveBets();
-    console.log(test.users)
-    //Delete old test files.
-    fs.unlinkSync(test.previousMatchesPath)
-    fs.unlinkSync(test.betsPath)
-    fs.unlinkSync(test.usersPath)
-    fs.unlinkSync(test.resolvedBetsPath)
-    fs.unlinkSync(test.matchDataPath)
-
-
-
-
-
 
     // console.log(test.upComingMatches);
     // console.log(test.previousMatches);
@@ -918,38 +867,99 @@ async function test1v1Odds() {
     // await test.resolveBets();
     // await test.cancelBet("classic", john, null);
     // console.log(test.outstandingBets);
-}
 
 bootSequence().catch(err => console.error(err))
 
 // ----------- TESTS --------------
 async function unitTests() {
-    console.log(await testAddUser());
+    var test = new UFCgame(null, null, null, null, null, null, `${__dirname}/testUsers.json`, `${__dirname}/testBets.json`, `${__dirname}/testMatchData.json`, `${__dirname}/testPreviousMatches.json`, `${__dirname}/testResolvedBets.json`);
+    await test.initialize();
+
+
+    let passFail = [];
+    //Expected test.users.indexOf(john != -1)
+    let user1, user2;
+    try{
+    await test.addUser(123, "john");
+    passFail.push("testAddUser", test.users.find(u => u.uuid == 123) != null ); } catch(err) {passFail.push(("testAddUser",false))}
+
+    try{
+    await test.addUser(456, "smith");
+    passFail.push("testAddUser", test.users.find(u => u.uuid == 456) != null); } catch(err) {passFail.push(("testAddUser",false))}
+
+    // Expected user with id 123, and username john 
+    try{
+    user1 = await testFindUser(test, 123);
+    passFail.push("testFindUser", user1.uuid == 123 && user1.userName == "john"); } catch(err) {passFail.push(("testFindUser",false))}
+    try{
+    user2 = await testFindUser(test, 456);
+    passFail.push("testFindUser", user2.uuid == 456 && user2.userName == "smith"); } catch(err) {passFail.push(("testFindUser",false))}
+    //Expected 600
+    try{
+    await testAddRemoveMoney(test, user1, 1000, 400);
+    passFail.push("testAddRemoveMoney", user1.balance == 600);} catch(err) {passFail.push(("testAddRemoveMoney",false))}
+    
+    //Expected 1200
+    try{
+    await testAddRemoveMoney(test, user2, 2400, 1200);
+    passFail.push("testAddRemoveMoney", user2.balance == 1200);} catch(err) {passFail.push(("testAddRemoveMoney",false))}
+    
+
+    await testAdvanced1v1OddsBet(test, user1, user2)
+    passFail.push("testAdvanced1v1OddsBet", user1.balance == 744 && user2.balance == 1056);
+
+ 
+    console.log("Unit Tests", passFail);
+    //After completion, delete all old testFiles
+    fs.unlinkSync(test.previousMatchesPath)
+    fs.unlinkSync(test.betsPath)
+    fs.unlinkSync(test.usersPath)
+    fs.unlinkSync(test.resolvedBetsPath)
+    fs.unlinkSync(test.matchDataPath)
 }
 
-async function testAddUser() {
-    var test = new UFCgame();
-    // await test.loadFromFile();
-    await test.refreshUpComingMatches();
-    test.addUser(123, "john");
-
-    // indexOf checks if users contains a user with a uid 123
-    var contains = test.users.indexOf(u => u.uuid == 123);
-
-    if (contains) {
-        return true 
-    } else {
-        return false;
-    }
-}
 
 // needs implementation:
 
-// function testAddRemoveMoney() {
-// }
+async function testAddRemoveMoney(test, user, add, take) {
+    await test.addMoney(user.uuid, add)
+    await test.takeMoney(user.uuid, take)
 
-// function testDatabaseConnection() {
-// }
+    return user;
+}
+
+function testDatabaseConnection() {
+
+}
+
+async function testAdvanced1v1OddsBet(test, user1, user2) {
+    await test.loadFromFile(`${__dirname}/oldMatchData.json`);
+    let user1Odds = -138;
+    let user2Odds = 110;
+    let user1MoneyInput = 200;
+    let user2MoneyInput = await test.calcMoneyWon(user1Odds, user1MoneyInput);
+    await test.addBet(new Bet("1v1odds", user1MoneyInput, 1646096, 61270400000, { uuid: user1.uuid, fighterName: "R Font" }, { uuid: user2.uuid, fighterName: "M Vera" }, { user1: user1Odds, user2: user2Odds }))
+
+    await test.takeMoney(123, user1MoneyInput);
+    await test.takeMoney(456, user2MoneyInput);
+
+
+    let bet = await test.verify1v1Bet("1v1", 1646096, user1.uuid, user2.uuid);
+    if (bet) {
+        console.log("1v1odds bet verified", bet)
+    }
+
+
+    await test.loadFromFile(`${__dirname}/newMatchData.json`);
+    await test.resolveBets();
+    return;
+}
+
+async function testFindUser(test, userID) {
+    let user = await test.findUser(userID);
+    return user;
+
+}
 
 // function testMakeBet() {
 // }
