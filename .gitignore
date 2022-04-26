@@ -1,10 +1,13 @@
 #Personal Configs
 *.json
 
+
+
 #Exception to Configs
 !package-lock.json
 !package.json
-
+!newMatchData.json
+!oldMatchData.json
 # Logs
 logs
 *.log

@@ -743,21 +743,21 @@ client.on('message', async (msg) => {
                 }
                 break;
             case 'refreshbefore':
-                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/oldMatchData.json")) {
+                if (await ufc.loadFromFile(`${__dirname}/oldMatchData.json`)) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
                 }
                 break;
             case 'refreshafter':
-                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/newMatchData.json")) {
+                if (await ufc.loadFromFile(`${__dirname}/newMatchData.json`)) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
                 }
                 break;
             case 'refreshdraw':
-                if (await ufc.loadFromFile("/home/ubuntu/ufc-bot/matchDatadraw.json")) {
+                if (await ufc.loadFromFile(`${__dirname}/matchDatadraw.json`)) {
                     textChannel.send("`" + `Refreshed upcoming matches from file.` + "`")
                 } else {
                     textChannel.send("`" + `Failed to refresh upcoming matches from file.` + "`")
@@ -967,6 +967,8 @@ async function unitTests() {
         console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
     }
 
+    console.log(user1)
+    console.log(user2)
 
     await testAdvanced1v1OddsBet(test, user1, user2)
     passFail.push( { UnitTest: "testAdvanced1v1OddsBet", Input: 'test, user1, user2', Condition: 'user1.balance == 744 && user2.balance == 1056', Result: user1.balance == 744 && user2.balance == 1056 } );
@@ -1003,7 +1005,7 @@ async function testAddRemoveMoney(test, user, add, take) {
 }
 
 async function testAdvanced1v1OddsBet(test, user1, user2) {
-    await test.loadFromFile(`${__dirname}/previousMatches.json`);
+    await test.loadFromFile(`${__dirname}/oldMatchData.json`);
     let user1Odds = -138;
     let user2Odds = 110;
     let user1MoneyInput = 200;
@@ -1022,7 +1024,7 @@ async function testAdvanced1v1OddsBet(test, user1, user2) {
     console.table(test.users);
     console.log("\n");
 
-    let bet = await test.verify1v1Bet("1v1", 1646096, user1.uuid, user2.uuid);
+    let bet = await test.verify1v1Bet("1v1odds", 1646096, user1.uuid, user2.uuid);
     if (bet) {
         console.log("1v1odds bet verified", bet)
     }
@@ -1031,7 +1033,7 @@ async function testAdvanced1v1OddsBet(test, user1, user2) {
     console.table(test.users);
     console.log("\n");
 
-    await test.loadFromFile(`${__dirname}/matchData.json`);
+    await test.loadFromFile(`${__dirname}/newMatchData.json`);
     await test.resolveBets();
 
     console.log("------------------------------\n  Check list of Users");
