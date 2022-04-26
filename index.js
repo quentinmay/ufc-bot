@@ -46,7 +46,7 @@ const path = require('path');
 const UFCgame = require('ufc-betting-game');
 const Bet = require('./node_modules/ufc-betting-game/utils/Bet');
 
-let ufc = new UFCgame();
+let ufc = new UFCgame(config.mongoDBURI);
 
 let textChannel;
 
