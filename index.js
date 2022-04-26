@@ -839,8 +839,8 @@ async function bootSequence() {
     // console.log(123)
     // await ufc.loadFromFile();
     // console.log(ufc.upComingMatches);
-    // await test1v1Odds();
-    await unitTests()
+    // await test1v1Odds();    
+    console.log(await unitTests());
     return true;
 }
 
@@ -875,41 +875,113 @@ async function unitTests() {
     var test = new UFCgame(null, null, null, null, null, null, `${__dirname}/testUsers.json`, `${__dirname}/testBets.json`, `${__dirname}/testMatchData.json`, `${__dirname}/testPreviousMatches.json`, `${__dirname}/testResolvedBets.json`);
     await test.initialize();
 
+    console.log("\n === PRE-TEST: CHECK INITIAL VALUES ================================= ");
+    console.log("   (A) - Check list of Users");
+    console.log("       - Should be empty list");
+    console.table(test.users);
+    console.log("PASSSED");  
 
     let passFail = [];
     //Expected test.users.indexOf(john != -1)
     let user1, user2;
     try{
     await test.addUser(123, "john");
-    passFail.push("testAddUser", test.users.find(u => u.uuid == 123) != null ); } catch(err) {passFail.push(("testAddUser",false))}
+    passFail.push( { UnitTest: 'testAddUser()', Input: '123, "john"', Condition: 'test.users.find(u => u.uuid == 123', Result: test.users.find(u => u.uuid == 123) != null} ); } catch(err) {passFail.push(("testAddUser",false))}
+    
+    console.log("\n UNIT TEST: 0 === [ testAddUser() ] ======================= ");
+    console.log("     (B) - Check list of Users");
+    console.log("         - Should be 1 User in List; [123, john]");
+    console.table(test.users);
+    if (test.users.find(u => u.uuid == 123) != null){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
 
     try{
     await test.addUser(456, "smith");
-    passFail.push("testAddUser", test.users.find(u => u.uuid == 456) != null); } catch(err) {passFail.push(("testAddUser",false))}
+    passFail.push( {UnitTest: "testAddUser()", Input: '456, "smith"', Condition: 'test.users.find(u => u.uuid == 123', Result: test.users.find(u => u.uuid == 456) != null}); } catch(err) {passFail.push(("testAddUser",false))}
+
+    console.log("\n UNIT TEST: 1 === [ testAddUser() ] ======================= ");
+    console.log("    (C)  - Check list of Users");
+    console.log("         - Should be 2 Users in List; [456, smith]");
+    console.table(test.users);
+    if (test.users.find(u => u.uuid == 456) != null){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
 
     // Expected user with id 123, and username john 
     try{
     user1 = await testFindUser(test, 123);
-    passFail.push("testFindUser", user1.uuid == 123 && user1.userName == "john"); } catch(err) {passFail.push(("testFindUser",false))}
+    passFail.push({ UnitTest: "testFindUser()", Input: 'test, 123', Condition: 'user1.uuid == 123 && user1.userName == "john"', Result: user1.uuid == 123 && user1.userName == "john"} ); } catch(err) {passFail.push(("testFindUser",false))}
+    
+    console.log("\n UNIT TEST: 2 === [ testFindUser() ] ======================= ");
+    console.log("\     - Check list of Users");
+    console.table(test.users);
+    if (user1.uuid == 123 && user1.userName == "john"){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
+    
     try{
     user2 = await testFindUser(test, 456);
-    passFail.push("testFindUser", user2.uuid == 456 && user2.userName == "smith"); } catch(err) {passFail.push(("testFindUser",false))}
+    passFail.push({ UnitTest: "testFindUser()", Input: 'test, 456', Condition: 'user2.uuid == 456 && user2.userName == "smith"', Result: user2.uuid == 456 && user2.userName == "smith"} ); } catch(err) {passFail.push(("testFindUser",false))}
     //Expected 600
+
+    console.log("\n UNIT TEST: 3 === [ testFindUser() ] ======================= ");
+    console.log("      - Check user2.uuid == 456 && user2.userName == 'smith'");
+    console.table(test.users);
+    if (user1.uuid == 123 && user1.userName == "john"){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
+
     try{
     await testAddRemoveMoney(test, user1, 1000, 400);
-    passFail.push("testAddRemoveMoney", user1.balance == 600);} catch(err) {passFail.push(("testAddRemoveMoney",false))}
+    passFail.push( { UnitTest: "testAddRemoveMoney()", Input: 'test, user1, 1000, 400', Condition: 'user1.balance == 600', Result: user1.balance == 600 } );} catch(err) {passFail.push(("testAddRemoveMoney",false))}
     
+    console.log("\n UNIT TEST: 4 === [ testAddRemoveMoney() ] ======================= ");
+    console.log("      - Check user1.balance == 600");
+    console.table(test.users);
+    if (user1.balance == 600){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
+
     //Expected 1200
     try{
     await testAddRemoveMoney(test, user2, 2400, 1200);
-    passFail.push("testAddRemoveMoney", user2.balance == 1200);} catch(err) {passFail.push(("testAddRemoveMoney",false))}
+    passFail.push( { UnitTest: "testAddRemoveMoney()", Input: 'test, user2, 2400, 1200', Condition: 'user2.balance == 1200', Result: user2.balance == 1200 } );} catch(err) {passFail.push(("testAddRemoveMoney",false))}
     
+    console.log("\n UNIT TEST: 5 === [ testAddRemoveMoney() ] ======================= ");
+    console.log("      - Check user2.balance == 1200");
+    console.table(test.users);
+    if (user2.balance == 1200){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
+
 
     await testAdvanced1v1OddsBet(test, user1, user2)
-    passFail.push("testAdvanced1v1OddsBet", user1.balance == 744 && user2.balance == 1056);
+    passFail.push( { UnitTest: "testAdvanced1v1OddsBet", Input: 'test, user1, user2', Condition: 'user1.balance == 744 && user2.balance == 1056', Result: user1.balance == 744 && user2.balance == 1056 } );
 
- 
-    console.log("Unit Tests", passFail);
+    console.log("\n UNIT TEST: 6 === [ testAdvanced1v1OddsBet ] ======================= ");
+    console.log("      - Check user1.balance == 744 && user2.balance == 1056");
+    console.table(test.users);
+    if (user1.balance == 744 && user2.balance == 1056){
+        console.log("%%%%%%%%\n PASSED\n%%%%%%%%\n");
+    } else {
+        console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
+    }
+
+    console.log("UNIT TEST SUITE -- SUMMARY:");
+    console.table(passFail);
     //After completion, delete all old testFiles
     fs.unlinkSync(test.previousMatchesPath)
     fs.unlinkSync(test.betsPath)
@@ -918,8 +990,10 @@ async function unitTests() {
     fs.unlinkSync(test.matchDataPath)
 }
 
+async function testAddUser(uuid, username) {
+    await test.addUser(uuid, username);
+}
 
-// needs implementation:
 
 async function testAddRemoveMoney(test, user, add, take) {
     await test.addMoney(user.uuid, add)
@@ -928,30 +1002,42 @@ async function testAddRemoveMoney(test, user, add, take) {
     return user;
 }
 
-function testDatabaseConnection() {
-
-}
-
 async function testAdvanced1v1OddsBet(test, user1, user2) {
-    await test.loadFromFile(`${__dirname}/oldMatchData.json`);
+    await test.loadFromFile(`${__dirname}/previousMatches.json`);
     let user1Odds = -138;
     let user2Odds = 110;
     let user1MoneyInput = 200;
     let user2MoneyInput = await test.calcMoneyWon(user1Odds, user1MoneyInput);
     await test.addBet(new Bet("1v1odds", user1MoneyInput, 1646096, 61270400000, { uuid: user1.uuid, fighterName: "R Font" }, { uuid: user2.uuid, fighterName: "M Vera" }, { user1: user1Odds, user2: user2Odds }))
 
+    console.log("\n(C) === UNIT TEST: 6 === [ testAdvanced1v1OddsBe ] ======================= ");
+    console.log("------------------------------\n  Check list of Users\n");
+    console.table(test.users);
+    console.log("\n");
+
     await test.takeMoney(123, user1MoneyInput);
     await test.takeMoney(456, user2MoneyInput);
 
+    console.log("------------------------------\n  Check list of Users");
+    console.table(test.users);
+    console.log("\n");
 
     let bet = await test.verify1v1Bet("1v1", 1646096, user1.uuid, user2.uuid);
     if (bet) {
         console.log("1v1odds bet verified", bet)
     }
 
+    console.log("------------------------------\n  Check list of Users");
+    console.table(test.users);
+    console.log("\n");
 
-    await test.loadFromFile(`${__dirname}/newMatchData.json`);
+    await test.loadFromFile(`${__dirname}/matchData.json`);
     await test.resolveBets();
+
+    console.log("------------------------------\n  Check list of Users");
+    console.table(test.users);
+    console.log("\n");
+
     return;
 }
 
@@ -961,5 +1047,7 @@ async function testFindUser(test, userID) {
 
 }
 
-// function testMakeBet() {
+// needs implementation------------------
+// function testDatabaseConnection() {
 // }
+// needs implementation------------------
