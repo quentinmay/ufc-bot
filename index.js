@@ -969,7 +969,7 @@ async function unitTests() {
 
 
     await testAdvanced1v1OddsBet(test, user1, user2)
-    passFail.push( { UnitTest: "testAdvanced1v1OddsBet", Input: 'test, user1, user2', Condition: 'user1.balance == 744 && user2.balance == 1056', Result: user1.balance == 744 && user2.balance == 1056 } );
+    passFail.push( { UnitTest: "testAdvanced1v1OddsBet()", Input: 'test, user1, user2', Condition: 'user1.balance == 744 && user2.balance == 1056', Result: user1.balance == 744 && user2.balance == 1056 } );
 
     console.log("\n UNIT TEST: 6 === [ testAdvanced1v1OddsBet ] ======================= ");
     console.log("      - Check user1.balance == 744 && user2.balance == 1056");
