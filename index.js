@@ -921,3 +921,35 @@ async function test1v1Odds() {
 }
 
 bootSequence().catch(err => console.error(err))
+
+// ----------- TESTS --------------
+async function unitTests() {
+    console.log(await testAddUser());
+}
+
+async function testAddUser() {
+    var test = new UFCgame();
+    // await test.loadFromFile();
+    await test.refreshUpComingMatches();
+    test.addUser(123, "john");
+
+    // indexOf checks if users contains a user with a uid 123
+    var contains = test.users.indexOf(u => u.uuid == 123);
+
+    if (contains) {
+        return true 
+    } else {
+        return false;
+    }
+}
+
+// needs implementation:
+
+// function testAddRemoveMoney() {
+// }
+
+// function testDatabaseConnection() {
+// }
+
+// function testMakeBet() {
+// }
