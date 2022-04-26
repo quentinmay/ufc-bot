@@ -1,3 +1,42 @@
+/*
+    Program name: "UFC Bot" The UFC Bot enables users of a discord server to play a fake UFC betting game with friends.
+    Copyright (C) 2021  Quentin May
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+/*
+Author information:
+    Authors: Quentin May, Ethan Santos, Brian Lucero
+    Emails: quentinemay@csu.fullerton.edu, ethansantos@csu.fullerton.edu, 13rianlucero@csu.fullerton.edu
+*/
+
+/*
+Program information:
+    Program name: UFC Bot
+    Programming language: JavaScript
+    Files: index.js
+    Date project began: 2022-February-17
+    Date of last update: 2022-April-25
+    Status: Unfinished
+    Purpose: The UFC Bot enables users of a discord server to play a fake UFC betting game with friends.
+    Base test system: Ubuntu 20.04.3 LTS
+*/
+/*
+This Module:
+    File name: index.js
+    Description: This is the entry point for the Discord bot that allows front-end capabilities and interpretation of user commands.
+*/
 const fs = require('fs');
 const { Client, Intents } = require('discord.js');
 let client = new Client();
