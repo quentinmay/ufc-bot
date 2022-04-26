@@ -967,8 +967,6 @@ async function unitTests() {
         console.log("%%%%%%%%\n FAILED\n%%%%%%%%\n");
     }
 
-    console.log(user1)
-    console.log(user2)
 
     await testAdvanced1v1OddsBet(test, user1, user2)
     passFail.push( { UnitTest: "testAdvanced1v1OddsBet()", Input: 'test, user1, user2', Condition: 'user1.balance == 744 && user2.balance == 1056', Result: user1.balance == 744 && user2.balance == 1056 } );
